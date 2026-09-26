@@ -1,0 +1,71 @@
+name: OpenWrt SDK with prebuilt Rust
+description: Build OpenWrt packages without compiling the Rust toolchain and LLVM
+author: RNS Gate
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve paths
+      id: inputs
+      shell: bash
+      run: |
+        echo "artifacts_dir=${ARTIFACTS_DIR:-$GITHUB_WORKSPACE}" >> "$GITHUB_OUTPUT"
+        echo "feed_dir=${FEED_DIR:-$GITHUB_WORKSPACE}" >> "$GITHUB_OUTPUT"
+
+    - name: Give the SDK container access to the workspace
+      shell: bash
+      run: sudo chown -R 1000:1000 ${{ steps.inputs.outputs.artifacts_dir }} ${{ steps.inputs.outputs.feed_dir }}
+
+    - name: Set up Docker QEMU
+      uses: docker/setup-qemu-action@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v4
+
+    - name: Build SDK container
+      uses: docker/build-push-action@v7
+      env:
+        DOCKER_BUILD_SUMMARY: false
+      with:
+        push: false
+        tags: sdk
+        context: ${{ github.action_path }}
+        build-args: |
+          CONTAINER
+          ARCH
+          RUST_TARGET
+        cache-to: type=gha,mode=max,scope=rust-${{ env.CONTAINER }}-${{ env.ARCH }}
+        cache-from: type=gha,scope=rust-${{ env.CONTAINER }}-${{ env.ARCH }}
+        load: true
+
+    - name: Build packages
+      shell: bash
+      run: |
+        docker run --rm \
+          --env BUILD \
+          --env BUILD_LOG \
+          --env EXTRA_FEEDS \
+          --env FEEDNAME \
+          --env IGNORE_ERRORS \
+          --env KEY_BUILD \
+          --env PRIVATE_KEY \
+          --env NO_DEFAULT_FEEDS \
+          --env NO_REFRESH_CHECK \
+          --env NO_SHFMT_CHECK \
+          --env PACKAGES \
+          --env INDEX \
+          --env RNS_EXTERNAL_RUST \
+          --env V \
+          -v ${{ steps.inputs.outputs.artifacts_dir }}:/artifacts \
+          -v ${{ steps.inputs.outputs.feed_dir }}:/feed \
+          sdk
+
+    - name: Restore artifact ownership
+      if: always()
+      shell: bash
+      run: sudo chown -R --reference=${{ steps.inputs.outputs.artifacts_dir }}/.. ${{ steps.inputs.outputs.artifacts_dir }}
+
+    - name: Restore feed ownership
+      if: always()
+      shell: bash
+      run: sudo chown -R --reference=${{ steps.inputs.outputs.feed_dir }}/.. ${{ steps.inputs.outputs.feed_dir }}

@@ -38,9 +38,11 @@ jobs:
           - id: raspberry-pi-3
             sdk_arch: aarch64_cortex-a53-25.12.5
             package_arch: aarch64_cortex-a53
+            rust_target: aarch64-unknown-linux-musl
           - id: x86-64
             sdk_arch: x86_64-25.12.5
             package_arch: x86_64
+            rust_target: x86_64-unknown-linux-musl
 
     steps:
       - name: Check out feed
@@ -50,7 +52,7 @@ jobs:
         run: mkdir -p artifacts
 
       - name: Build packages and index
-        uses: openwrt/gh-action-sdk@v11
+        uses: ./.github/actions/openwrt-sdk-rust
         env:
           ARCH: ${{ matrix.sdk_arch }}
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
@@ -60,6 +62,8 @@ jobs:
           INDEX: 1
           PACKAGES: ${{ env.PACKAGES }}
           PRIVATE_KEY: ${{ secrets.OPENWRT_APK_PRIVATE_KEY }}
+          RNS_EXTERNAL_RUST: 1
+          RUST_TARGET: ${{ matrix.rust_target }}
           V: s
 
       - name: Stage binary feed
