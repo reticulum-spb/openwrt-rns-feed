@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: build-feed-${{ github.workflow }}-${{ github.ref }}
@@ -17,6 +18,7 @@ concurrency:
 env:
   OPENWRT_VERSION: 25.12.5
   FEED_NAME: rns
+  SDK_IMAGE: ghcr.io/reticulum-spb/openwrt-rns-sdk-rust
   PACKAGES: >-
     rs-reticulum
     rs-lxmf
@@ -73,6 +75,7 @@ jobs:
           PRIVATE_KEY: ${{ secrets.OPENWRT_APK_PRIVATE_KEY }}
           RNS_EXTERNAL_RUST: 1
           RUST_TARGET: ${{ matrix.rust_target }}
+          SDK_IMAGE: ${{ env.SDK_IMAGE }}
           V: s
 
       - name: Stage binary feed
