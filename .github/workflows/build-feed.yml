@@ -40,10 +40,12 @@ jobs:
           - id: raspberry-pi-3
             sdk_arch: aarch64_cortex-a53-25.12.5
             package_arch: aarch64_cortex-a53
+            target_build_dir: target-aarch64_cortex-a53_musl
             rust_target: aarch64-unknown-linux-musl
           - id: x86-64
             sdk_arch: x86_64-25.12.5
             package_arch: x86_64
+            target_build_dir: target-x86_64_musl
             rust_target: x86_64-unknown-linux-musl
 
     steps:
@@ -75,6 +77,7 @@ jobs:
           PRIVATE_KEY: ${{ secrets.OPENWRT_APK_PRIVATE_KEY }}
           RNS_EXTERNAL_RUST: 1
           RUST_TARGET: ${{ matrix.rust_target }}
+          TARGET_BUILD_DIR: ${{ matrix.target_build_dir }}
           SDK_IMAGE: ${{ env.SDK_IMAGE }}
           V: s
 
