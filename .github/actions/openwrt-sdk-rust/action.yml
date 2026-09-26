@@ -10,11 +10,19 @@ runs:
       shell: bash
       run: |
         echo "artifacts_dir=${ARTIFACTS_DIR:-$GITHUB_WORKSPACE}" >> "$GITHUB_OUTPUT"
+        echo "cache_dir=${CACHE_DIR:-$RUNNER_TEMP/openwrt-cache/$ARCH}" >> "$GITHUB_OUTPUT"
         echo "feed_dir=${FEED_DIR:-$GITHUB_WORKSPACE}" >> "$GITHUB_OUTPUT"
 
     - name: Give the SDK container access to the workspace
       shell: bash
-      run: sudo chown -R 1000:1000 ${{ steps.inputs.outputs.artifacts_dir }} ${{ steps.inputs.outputs.feed_dir }}
+      run: |
+        mkdir -p \
+          ${{ steps.inputs.outputs.cache_dir }}/dl \
+          ${{ steps.inputs.outputs.cache_dir }}/cargo-target
+        sudo chown -R 1000:1000 \
+          ${{ steps.inputs.outputs.artifacts_dir }} \
+          ${{ steps.inputs.outputs.cache_dir }} \
+          ${{ steps.inputs.outputs.feed_dir }}
 
     - name: Set up Docker QEMU
       uses: docker/setup-qemu-action@v4
@@ -57,6 +65,8 @@ runs:
           --env RNS_EXTERNAL_RUST \
           --env V \
           -v ${{ steps.inputs.outputs.artifacts_dir }}:/artifacts \
+          -v ${{ steps.inputs.outputs.cache_dir }}/dl:/builder/dl \
+          -v ${{ steps.inputs.outputs.cache_dir }}/cargo-target:/builder/build_dir/rns-cargo-target \
           -v ${{ steps.inputs.outputs.feed_dir }}:/feed \
           sdk
 
@@ -69,3 +79,8 @@ runs:
       if: always()
       shell: bash
       run: sudo chown -R --reference=${{ steps.inputs.outputs.feed_dir }}/.. ${{ steps.inputs.outputs.feed_dir }}
+
+    - name: Restore cache ownership
+      if: always()
+      shell: bash
+      run: sudo chown -R --reference=${{ steps.inputs.outputs.cache_dir }}/.. ${{ steps.inputs.outputs.cache_dir }}

@@ -48,6 +48,14 @@ jobs:
       - name: Check out feed
         uses: actions/checkout@v7
 
+      - name: Restore OpenWrt and Cargo cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/openwrt-cache/${{ matrix.id }}
+          key: openwrt-rust-${{ runner.os }}-${{ matrix.sdk_arch }}-${{ hashFiles('packages/**/Makefile', '.github/actions/openwrt-sdk-rust/**') }}
+          restore-keys: |
+            openwrt-rust-${{ runner.os }}-${{ matrix.sdk_arch }}-
+
       - name: Prepare artifact directory
         run: mkdir -p artifacts
 
@@ -57,6 +65,7 @@ jobs:
           ARCH: ${{ matrix.sdk_arch }}
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
           BUILD_LOG: 1
+          CACHE_DIR: ${{ runner.temp }}/openwrt-cache/${{ matrix.id }}
           FEED_DIR: ${{ github.workspace }}
           FEEDNAME: ${{ env.FEED_NAME }}
           INDEX: 1
