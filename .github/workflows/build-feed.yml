@@ -1,0 +1,114 @@
+name: Build OpenWrt feed
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-feed-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENWRT_VERSION: 25.12.5
+  FEED_NAME: rns
+  PACKAGES: >-
+    rs-reticulum
+    rs-lxmf
+    rs-nodepage
+    rs-rrcd
+    rs-nomadnet
+
+jobs:
+  build:
+    name: Build ${{ matrix.id }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - id: raspberry-pi-3
+            sdk_arch: aarch64_cortex-a53-25.12.5
+            package_arch: aarch64_cortex-a53
+          - id: x86-64
+            sdk_arch: x86_64-25.12.5
+            package_arch: x86_64
+
+    steps:
+      - name: Check out feed
+        uses: actions/checkout@v7
+
+      - name: Prepare artifact directory
+        run: mkdir -p artifacts
+
+      - name: Build packages and index
+        uses: openwrt/gh-action-sdk@v11
+        env:
+          ARCH: ${{ matrix.sdk_arch }}
+          ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
+          BUILD_LOG: 1
+          FEED_DIR: ${{ github.workspace }}
+          FEEDNAME: ${{ env.FEED_NAME }}
+          INDEX: 1
+          PACKAGES: ${{ env.PACKAGES }}
+          PRIVATE_KEY: ${{ secrets.OPENWRT_APK_PRIVATE_KEY }}
+          V: s
+
+      - name: Stage binary feed
+        env:
+          PACKAGE_ARCH: ${{ matrix.package_arch }}
+        run: |
+          source_dir="artifacts/bin/packages/${PACKAGE_ARCH}/${FEED_NAME}"
+          target_dir="publish/${OPENWRT_VERSION}/${PACKAGE_ARCH}/${FEED_NAME}"
+
+          test -f "${source_dir}/packages.adb"
+          mkdir -p "${target_dir}"
+          cp -a "${source_dir}/." "${target_dir}/"
+
+      - name: Upload architecture feed
+        uses: actions/upload-artifact@v4
+        with:
+          name: feed-${{ matrix.id }}
+          path: publish/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.id }}
+          path: artifacts/logs/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  assemble:
+    name: Assemble feed artifact
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download architecture feeds
+        uses: actions/download-artifact@v5
+        with:
+          pattern: feed-*
+          path: feed
+          merge-multiple: true
+
+      - name: Upload complete feed
+        uses: actions/upload-artifact@v4
+        with:
+          name: rns-feed-${{ env.OPENWRT_VERSION }}
+          path: feed/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 30

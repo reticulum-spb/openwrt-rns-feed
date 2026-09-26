@@ -1,0 +1,68 @@
+include $(TOPDIR)/rules.mk
+
+PKG_NAME:=rs-rrcd
+PKG_VERSION:=0.1.0
+PKG_RELEASE:=1
+
+PKG_SOURCE_VERSION:=baaa85d0bb7c601beed45b3fdefaccc7ee6c5ec1
+PKG_SOURCE:=rsRRCD-$(PKG_SOURCE_VERSION).tar.gz
+PKG_SOURCE_URL:=https://codeload.github.com/reticulum-spb/rsRRCD/tar.gz/$(PKG_SOURCE_VERSION)?
+PKG_HASH:=f0265f4625e7cda2d15b921c2be188ac3fd71d0250f044df140b9b304daba7c3
+
+RSRETICULUM_VERSION:=5e85d82b53f9c299caf378683294dfeedfdd029f
+RSRETICULUM_SOURCE:=rsReticulum-$(RSRETICULUM_VERSION).tar.gz
+RSRRC_VERSION:=6307592f77ddc5f099c8d7f5a35824d8326de9ff
+RSRRC_SOURCE:=rsRRC-$(RSRRC_VERSION).tar.gz
+
+PKG_MAINTAINER:=RNS Gate
+PKG_LICENSE:=MIT
+PKG_BUILD_DEPENDS:=$(if $(RNS_EXTERNAL_RUST),,rust/host)
+PKG_BUILD_PARALLEL:=1
+PKG_BUNDLE_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
+PKG_BUILD_DIR:=$(PKG_BUNDLE_DIR)/rsRRCD
+PKG_UNPACK=$(HOST_TAR) -C $(PKG_BUILD_DIR) --strip-components=1 -xzf $(DL_DIR)/$(PKG_SOURCE)
+
+include $(INCLUDE_DIR)/package.mk
+include $(TOPDIR)/feeds/packages/lang/rust/rust-package.mk
+
+CARGO_PKG_PROFILE:=release
+CARGO_PKG_CONFIG_VARS += CARGO_TARGET_DIR=$(BUILD_DIR)/rns-cargo-target
+
+define Download/rsreticulum
+  URL:=https://codeload.github.com/reticulum-spb/rsReticulum/tar.gz/$(RSRETICULUM_VERSION)?
+  FILE:=$(RSRETICULUM_SOURCE)
+  HASH:=f70c019daaf0108733d9b4fbf8c979edfbcef4dac0b40d4581946f48f47422ff
+endef
+
+define Download/rsrrc
+  URL:=https://codeload.github.com/reticulum-spb/rsRRC/tar.gz/$(RSRRC_VERSION)?
+  FILE:=$(RSRRC_SOURCE)
+  HASH:=541c7a5079ed4e4bd57f07d45871381add9cdbf26606a710ad3dec09c0a6b6e6
+endef
+
+define Package/rs-rrcd
+  SECTION:=net
+  CATEGORY:=Network
+  TITLE:=RRC daemon in Rust
+  DEPENDS:=$(RUST_ARCH_DEPENDS)
+  URL:=https://github.com/reticulum-spb/rsRRCD
+endef
+
+define Package/rs-rrcd/description
+  Rust command-line implementation of the RRC daemon.
+endef
+
+define Build/Prepare
+	$(call Build/Prepare/Default)
+	$(eval $(call Download,rsreticulum))
+	$(eval $(call Download,rsrrc))
+	rm -rf $(PKG_BUNDLE_DIR)/rsReticulum $(PKG_BUNDLE_DIR)/rsRRC
+	mkdir -p $(PKG_BUNDLE_DIR)/rsReticulum $(PKG_BUNDLE_DIR)/rsRRC
+	$(TAR) -xf $(DL_DIR)/$(RSRETICULUM_SOURCE) --strip=1 -C $(PKG_BUNDLE_DIR)/rsReticulum
+	$(TAR) -xf $(DL_DIR)/$(RSRRC_SOURCE) --strip=1 -C $(PKG_BUNDLE_DIR)/rsRRC
+	$(SED) 's/as nix::libc::c_ulong;/as nix::libc::c_int;/' \
+		$(PKG_BUNDLE_DIR)/rsReticulum/crates/rns-runtime/src/rnsh.rs
+endef
+
+$(eval $(call RustBinPackage,rs-rrcd))
+$(eval $(call BuildPackage,rs-rrcd))
