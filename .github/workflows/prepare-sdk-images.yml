@@ -8,7 +8,7 @@ on:
     paths:
       - .github/actions/openwrt-sdk-rust/Dockerfile
       - .github/actions/openwrt-sdk-rust/entrypoint.sh
-      - .github/workflows/publish-sdk-images.yml
+      - .github/workflows/prepare-sdk-images.yml
 
 permissions:
   contents: read

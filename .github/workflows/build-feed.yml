@@ -93,41 +93,19 @@ jobs:
           cp -a "${source_dir}/." "${target_dir}/"
 
       - name: Upload architecture feed
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: feed-${{ matrix.id }}
           path: publish/
           compression-level: 0
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
 
       - name: Upload build logs
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: logs-${{ matrix.id }}
           path: artifacts/logs/
           if-no-files-found: ignore
-          retention-days: 14
-
-  assemble:
-    name: Assemble feed artifact
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download architecture feeds
-        uses: actions/download-artifact@v5
-        with:
-          pattern: feed-*
-          path: feed
-          merge-multiple: true
-
-      - name: Upload complete feed
-        uses: actions/upload-artifact@v4
-        with:
-          name: rns-feed-${{ env.OPENWRT_VERSION }}
-          path: feed/
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
