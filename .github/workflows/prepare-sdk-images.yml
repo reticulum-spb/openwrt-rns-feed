@@ -32,8 +32,12 @@ jobs:
         include:
           - sdk_arch: aarch64_cortex-a53-25.12.5
             rust_target: aarch64-unknown-linux-musl
-          - sdk_arch: x86_64-25.12.5
-            rust_target: x86_64-unknown-linux-musl
+          - sdk_arch: rockchip-armv8-25.12.5
+            rust_target: aarch64-unknown-linux-musl
+          - sdk_arch: sunxi-cortexa7-25.12.5
+            rust_target: armv7-unknown-linux-musleabihf
+          - sdk_arch: kirkwood-generic-25.12.5
+            rust_target: armv5te-unknown-linux-musleabi
 
     steps:
       - name: Check out repository

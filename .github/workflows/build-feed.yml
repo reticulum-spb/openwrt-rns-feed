@@ -34,19 +34,29 @@ jobs:
 
     strategy:
       fail-fast: false
-      max-parallel: 2
+      max-parallel: 4
       matrix:
         include:
-          - id: raspberry-pi-3
+          - id: aarch64-cortex-a53
             sdk_arch: aarch64_cortex-a53-25.12.5
             package_arch: aarch64_cortex-a53
             target_build_dir: target-aarch64_cortex-a53_musl
             rust_target: aarch64-unknown-linux-musl
-          - id: x86-64
-            sdk_arch: x86_64-25.12.5
-            package_arch: x86_64
-            target_build_dir: target-x86_64_musl
-            rust_target: x86_64-unknown-linux-musl
+          - id: rockchip-armv8
+            sdk_arch: rockchip-armv8-25.12.5
+            package_arch: aarch64_generic
+            target_build_dir: target-aarch64_generic_musl
+            rust_target: aarch64-unknown-linux-musl
+          - id: sunxi-cortexa7
+            sdk_arch: sunxi-cortexa7-25.12.5
+            package_arch: arm_cortex-a7_neon-vfpv4
+            target_build_dir: target-arm_cortex-a7+neon-vfpv4_musl_eabi
+            rust_target: armv7-unknown-linux-musleabihf
+          - id: kirkwood-generic
+            sdk_arch: kirkwood-generic-25.12.5
+            package_arch: arm_xscale
+            target_build_dir: target-arm_xscale_musl_eabi
+            rust_target: armv5te-unknown-linux-musleabi
 
     steps:
       - name: Check out feed
@@ -109,3 +119,46 @@ jobs:
           path: artifacts/logs/
           if-no-files-found: ignore
           retention-days: 7
+
+  deploy-pages:
+    name: Deploy feed to GitHub Pages
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Download architecture feeds
+        uses: actions/download-artifact@v8
+        with:
+          pattern: feed-*
+          path: pages
+          merge-multiple: true
+
+      - name: Check GitHub Pages size limit
+        shell: bash
+        run: |
+          size_bytes="$(du -sb pages | cut -f1)"
+          limit_bytes=$((1024 * 1024 * 1024))
+
+          echo "Pages payload: $(numfmt --to=iec-i --suffix=B "$size_bytes")"
+          if (( size_bytes > limit_bytes )); then
+            echo "::error::GitHub Pages payload exceeds the 1 GiB limit"
+            exit 1
+          fi
+
+      - name: Upload GitHub Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: pages
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
