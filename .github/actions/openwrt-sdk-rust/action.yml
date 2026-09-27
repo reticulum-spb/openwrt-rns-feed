@@ -1,5 +1,5 @@
 name: OpenWrt SDK with prebuilt Rust
-description: Build OpenWrt packages with a published SDK and Rust image
+description: Build OpenWrt packages with a published SDK and Rust builder image
 author: RNS Gate
 
 runs:
@@ -10,12 +10,12 @@ runs:
       shell: bash
       run: |
         echo "artifacts_dir=${ARTIFACTS_DIR:-$GITHUB_WORKSPACE}" >> "$GITHUB_OUTPUT"
-        echo "cache_dir=${CACHE_DIR:-$RUNNER_TEMP/openwrt-cache/$ARCH}" >> "$GITHUB_OUTPUT"
+        echo "cache_dir=${CACHE_DIR:-$RUNNER_TEMP/openwrt-cache/$OPENWRT_SDK_TAG}" >> "$GITHUB_OUTPUT"
         echo "feed_dir=${FEED_DIR:-$GITHUB_WORKSPACE}" >> "$GITHUB_OUTPUT"
-        echo "image=${SDK_IMAGE:?SDK_IMAGE must be set}" >> "$GITHUB_OUTPUT"
-        echo "image_tag=${ARCH}-rust-1.94.0" >> "$GITHUB_OUTPUT"
+        echo "image=${BUILDER_IMAGE:?BUILDER_IMAGE must be set}" >> "$GITHUB_OUTPUT"
+        echo "image_tag=${OPENWRT_SDK_TAG:?OPENWRT_SDK_TAG must be set}-rust-${RUST_VERSION:?RUST_VERSION must be set}" >> "$GITHUB_OUTPUT"
 
-    - name: Give the SDK container access to the workspace
+    - name: Give the builder container access to the workspace
       shell: bash
       run: |
         mkdir -p \
@@ -33,7 +33,7 @@ runs:
         username: ${{ github.actor }}
         password: ${{ github.token }}
 
-    - name: Pull SDK image
+    - name: Pull builder image
       id: pull
       continue-on-error: true
       shell: bash
@@ -43,7 +43,7 @@ runs:
       if: steps.pull.outcome == 'failure'
       uses: docker/setup-buildx-action@v4
 
-    - name: Build SDK image as fallback
+    - name: Build builder image as fallback
       if: steps.pull.outcome == 'failure'
       uses: docker/build-push-action@v7
       env:
@@ -54,11 +54,12 @@ runs:
         load: true
         tags: ${{ steps.inputs.outputs.image }}:${{ steps.inputs.outputs.image_tag }}
         build-args: |
-          CONTAINER=ghcr.io/openwrt/sdk
-          ARCH=${{ env.ARCH }}
+          OPENWRT_SDK_IMAGE=ghcr.io/openwrt/sdk
+          OPENWRT_SDK_TAG=${{ env.OPENWRT_SDK_TAG }}
           RUST_TARGET=${{ env.RUST_TARGET }}
-        cache-from: type=gha,scope=sdk-${{ env.ARCH }}
-        cache-to: type=gha,mode=max,scope=sdk-${{ env.ARCH }}
+          RUST_VERSION=${{ env.RUST_VERSION }}
+        cache-from: type=gha,scope=builder-${{ env.OPENWRT_SDK_TAG }}-rust-${{ env.RUST_VERSION }}
+        cache-to: type=gha,mode=max,scope=builder-${{ env.OPENWRT_SDK_TAG }}-rust-${{ env.RUST_VERSION }}
 
     - name: Build packages
       shell: bash
@@ -80,7 +81,7 @@ runs:
           --env V \
           -v ${{ steps.inputs.outputs.artifacts_dir }}:/artifacts \
           -v ${{ steps.inputs.outputs.cache_dir }}/dl:/builder/dl \
-          -v ${{ steps.inputs.outputs.cache_dir }}/cargo-target:/builder/build_dir/${TARGET_BUILD_DIR:?TARGET_BUILD_DIR must be set}/rns-cargo-target \
+          -v ${{ steps.inputs.outputs.cache_dir }}/cargo-target:/builder/build_dir/${OPENWRT_BUILD_DIR:?OPENWRT_BUILD_DIR must be set}/rns-cargo-target \
           -v ${{ steps.inputs.outputs.feed_dir }}:/feed \
           ${{ steps.inputs.outputs.image }}:${{ steps.inputs.outputs.image_tag }}
 

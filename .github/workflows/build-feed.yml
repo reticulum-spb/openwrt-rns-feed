@@ -17,8 +17,9 @@ concurrency:
 
 env:
   OPENWRT_VERSION: 25.12.5
+  RUST_VERSION: 1.94.0
   FEED_NAME: rns
-  SDK_IMAGE: ghcr.io/reticulum-spb/openwrt-rns-sdk-rust
+  BUILDER_IMAGE: ghcr.io/reticulum-spb/openwrt-rns-sdk-rust
   PACKAGES: >-
     rs-reticulum
     rs-lxmf
@@ -28,7 +29,7 @@ env:
 
 jobs:
   build:
-    name: Build ${{ matrix.id }}
+    name: Build ${{ matrix.target }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
 
@@ -37,26 +38,25 @@ jobs:
       max-parallel: 4
       matrix:
         include:
-          - id: aarch64-cortex-a53
-            sdk_arch: aarch64_cortex-a53-25.12.5
+          - target: bcm27xx-bcm2710
             package_arch: aarch64_cortex-a53
-            target_build_dir: target-aarch64_cortex-a53_musl
+            openwrt_build_dir: target-aarch64_cortex-a53_musl
             rust_target: aarch64-unknown-linux-musl
-          - id: rockchip-armv8
-            sdk_arch: rockchip-armv8-25.12.5
+
+          - target: rockchip-armv8
             package_arch: aarch64_generic
-            target_build_dir: target-aarch64_generic_musl
+            openwrt_build_dir: target-aarch64_generic_musl
             rust_target: aarch64-unknown-linux-musl
-          - id: sunxi-cortexa7
-            sdk_arch: sunxi-cortexa7-25.12.5
+
+          - target: sunxi-cortexa7
             package_arch: arm_cortex-a7_neon-vfpv4
-            target_build_dir: target-arm_cortex-a7+neon-vfpv4_musl_eabi
+            openwrt_build_dir: target-arm_cortex-a7+neon-vfpv4_musl_eabi
             rust_target: armv7-unknown-linux-musleabihf
-          - id: kirkwood-generic
-            sdk_arch: kirkwood-generic-25.12.5
-            package_arch: arm_xscale
-            target_build_dir: target-arm_xscale_musl_eabi
-            rust_target: armv5te-unknown-linux-musleabi
+
+#          - target: kirkwood-generic
+#            package_arch: arm_xscale
+#            openwrt_build_dir: target-arm_xscale_musl_eabi
+#            rust_target: armv5te-unknown-linux-musleabi
 
     steps:
       - name: Check out feed
@@ -65,10 +65,10 @@ jobs:
       - name: Restore OpenWrt and Cargo cache
         uses: actions/cache@v6
         with:
-          path: ${{ runner.temp }}/openwrt-cache/${{ matrix.id }}
-          key: openwrt-rust-${{ runner.os }}-${{ matrix.sdk_arch }}-${{ hashFiles('packages/**/Makefile', '.github/actions/openwrt-sdk-rust/**') }}
+          path: ${{ runner.temp }}/openwrt-cache/${{ matrix.target }}
+          key: openwrt-builder-${{ runner.os }}-${{ matrix.target }}-${{ env.OPENWRT_VERSION }}-rust-${{ env.RUST_VERSION }}-${{ hashFiles('packages/**/Makefile', '.github/actions/openwrt-sdk-rust/**') }}
           restore-keys: |
-            openwrt-rust-${{ runner.os }}-${{ matrix.sdk_arch }}-
+            openwrt-builder-${{ runner.os }}-${{ matrix.target }}-${{ env.OPENWRT_VERSION }}-rust-${{ env.RUST_VERSION }}-
 
       - name: Prepare artifact directory
         run: mkdir -p artifacts
@@ -76,19 +76,20 @@ jobs:
       - name: Build packages and index
         uses: ./.github/actions/openwrt-sdk-rust
         env:
-          ARCH: ${{ matrix.sdk_arch }}
           ARTIFACTS_DIR: ${{ github.workspace }}/artifacts
           BUILD_LOG: 1
-          CACHE_DIR: ${{ runner.temp }}/openwrt-cache/${{ matrix.id }}
+          BUILDER_IMAGE: ${{ env.BUILDER_IMAGE }}
+          CACHE_DIR: ${{ runner.temp }}/openwrt-cache/${{ matrix.target }}
           FEED_DIR: ${{ github.workspace }}
           FEEDNAME: ${{ env.FEED_NAME }}
           INDEX: 1
+          OPENWRT_BUILD_DIR: ${{ matrix.openwrt_build_dir }}
+          OPENWRT_SDK_TAG: ${{ matrix.target }}-${{ env.OPENWRT_VERSION }}
           PACKAGES: ${{ env.PACKAGES }}
           PRIVATE_KEY: ${{ secrets.OPENWRT_APK_PRIVATE_KEY }}
           RNS_EXTERNAL_RUST: 1
           RUST_TARGET: ${{ matrix.rust_target }}
-          TARGET_BUILD_DIR: ${{ matrix.target_build_dir }}
-          SDK_IMAGE: ${{ env.SDK_IMAGE }}
+          RUST_VERSION: ${{ env.RUST_VERSION }}
           V: s
 
       - name: Stage binary feed
@@ -105,7 +106,7 @@ jobs:
       - name: Upload architecture feed
         uses: actions/upload-artifact@v7
         with:
-          name: feed-${{ matrix.id }}
+          name: feed-${{ matrix.target }}
           path: publish/
           compression-level: 0
           if-no-files-found: error
@@ -115,7 +116,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: logs-${{ matrix.id }}
+          name: logs-${{ matrix.target }}
           path: artifacts/logs/
           if-no-files-found: ignore
           retention-days: 7

@@ -1,4 +1,4 @@
-name: Publish OpenWrt SDK images
+name: Publish OpenWrt SDK + Rust builder images
 
 on:
   workflow_dispatch:
@@ -8,35 +8,37 @@ on:
     paths:
       - .github/actions/openwrt-sdk-rust/Dockerfile
       - .github/actions/openwrt-sdk-rust/entrypoint.sh
-      - .github/workflows/prepare-sdk-images.yml
+      - .github/workflows/publish-builder-images.yml
 
 permissions:
   contents: read
   packages: write
 
 concurrency:
-  group: publish-openwrt-sdk-images
+  group: publish-openwrt-rust-builders
   cancel-in-progress: true
 
 env:
-  SDK_IMAGE: ghcr.io/reticulum-spb/openwrt-rns-sdk-rust
+  OPENWRT_VERSION: 25.12.5
+  RUST_VERSION: 1.94.0
+  BUILDER_IMAGE: ghcr.io/reticulum-spb/openwrt-rns-sdk-rust
 
 jobs:
   publish:
-    name: Publish ${{ matrix.sdk_arch }}
+    name: Publish ${{ matrix.target }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
       matrix:
         include:
-          - sdk_arch: aarch64_cortex-a53-25.12.5
+          - target: bcm27xx-bcm2710
             rust_target: aarch64-unknown-linux-musl
-          - sdk_arch: rockchip-armv8-25.12.5
+          - target: rockchip-armv8
             rust_target: aarch64-unknown-linux-musl
-          - sdk_arch: sunxi-cortexa7-25.12.5
+          - target: sunxi-cortexa7
             rust_target: armv7-unknown-linux-musleabihf
-          - sdk_arch: kirkwood-generic-25.12.5
+          - target: kirkwood-generic
             rust_target: armv5te-unknown-linux-musleabi
 
     steps:
@@ -53,18 +55,19 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and publish SDK image
+      - name: Build and publish builder image
         uses: docker/build-push-action@v7
         env:
           DOCKER_BUILD_SUMMARY: false
         with:
           context: .github/actions/openwrt-sdk-rust
           push: true
-          tags: ${{ env.SDK_IMAGE }}:${{ matrix.sdk_arch }}-rust-1.94.0
+          tags: ${{ env.BUILDER_IMAGE }}:${{ matrix.target }}-${{ env.OPENWRT_VERSION }}-rust-${{ env.RUST_VERSION }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
           build-args: |
-            CONTAINER=ghcr.io/openwrt/sdk
-            ARCH=${{ matrix.sdk_arch }}
+            OPENWRT_SDK_IMAGE=ghcr.io/openwrt/sdk
+            OPENWRT_SDK_TAG=${{ matrix.target }}-${{ env.OPENWRT_VERSION }}
             RUST_TARGET=${{ matrix.rust_target }}
-          cache-from: type=gha,scope=sdk-${{ matrix.sdk_arch }}
-          cache-to: type=gha,mode=max,scope=sdk-${{ matrix.sdk_arch }}
+            RUST_VERSION=${{ env.RUST_VERSION }}
+          cache-from: type=gha,scope=builder-${{ matrix.target }}-${{ env.OPENWRT_VERSION }}-rust-${{ env.RUST_VERSION }}
+          cache-to: type=gha,mode=max,scope=builder-${{ matrix.target }}-${{ env.OPENWRT_VERSION }}-rust-${{ env.RUST_VERSION }}
