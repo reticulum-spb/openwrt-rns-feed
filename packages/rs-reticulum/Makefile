@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=rs-reticulum
 PKG_VERSION:=1.5.2
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_VERSION:=5e85d82b53f9c299caf378683294dfeedfdd029f
 PKG_SOURCE:=rsReticulum-$(PKG_SOURCE_VERSION).tar.gz
@@ -42,6 +42,13 @@ endef
 
 define Build/Compile
 	$(call Build/Compile/Cargo,crates/rns-tools)
+endef
+
+define Package/rs-reticulum/install
+	$(INSTALL_DIR) $(1)/usr/bin $(1)/etc/init.d $(1)/lib/upgrade/keep.d
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/bin/* $(1)/usr/bin/
+	$(INSTALL_BIN) ./files/rs-reticulum.init $(1)/etc/init.d/rs-reticulum
+	$(INSTALL_DATA) ./files/rs-reticulum.keep $(1)/lib/upgrade/keep.d/rs-reticulum
 endef
 
 $(eval $(call RustBinPackage,rs-reticulum))
