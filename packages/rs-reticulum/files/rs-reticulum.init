@@ -5,6 +5,11 @@ STOP=10
 USE_PROCD=1
 
 start_service() {
+	if [ ! -e /etc/rsReticulum/config.yaml ]; then
+		mkdir -p /etc/rsReticulum
+		printf 'logging:\n  timestamps: false\ninterfaces:\n  - type: auto\n    name: Default Interface\n    enabled: true\n' > /etc/rsReticulum/config.yaml
+	fi
+
 	procd_open_instance
 	procd_set_param command /usr/bin/rnsd-rs --config /etc/rsReticulum
 	procd_set_param respawn

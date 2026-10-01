@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=rs-reticulum
 PKG_VERSION:=1.5.2
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE_VERSION:=5e85d82b53f9c299caf378683294dfeedfdd029f
 PKG_SOURCE:=rsReticulum-$(PKG_SOURCE_VERSION).tar.gz
