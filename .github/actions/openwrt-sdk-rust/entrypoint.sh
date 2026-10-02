@@ -43,7 +43,7 @@ if [ -z "$NO_DEFAULT_FEEDS" ]; then
 		-e 's,https://git.openwrt.org/openwrt/,https://github.com/openwrt/,' \
 		-e 's,https://git.openwrt.org/project/,https://github.com/openwrt/,' \
 		feeds.conf.default | \
-		sed -n '/^src-git packages /p' > feeds.conf
+		sed -n -E '/^src-git (--[^ ]+ )*(base|packages) /p' > feeds.conf
 fi
 
 echo "src-link $FEEDNAME /feed/" >> feeds.conf
