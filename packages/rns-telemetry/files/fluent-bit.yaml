@@ -1,0 +1,30 @@
+env:
+  - name: DEVICE_MAC
+    uri: file:///etc/fluent-bit/device-mac
+
+service:
+  flush: 10
+  log_level: info
+
+pipeline:
+  inputs:
+    - name: node_exporter_metrics
+      tag: system_metrics
+      scrape_interval: 10
+      metrics: cpu,meminfo,loadavg,netdev
+
+  outputs:
+    - name: opentelemetry
+      match: system_metrics
+      host: metrics.nekoalex.dev
+      port: 443
+      metrics_uri: /v1/metrics
+      http_user: "otel-ingest"
+      http_passwd: "piu45g89up9h834g98q34099--j0q3t4"
+      tls: on
+      tls.verify: on
+      tls.verify_hostname: on
+      tls.ca_file: /etc/ssl/certs/ca-certificates.crt
+      add_label:
+        - system rns_gate
+        - "device_mac ${DEVICE_MAC}"

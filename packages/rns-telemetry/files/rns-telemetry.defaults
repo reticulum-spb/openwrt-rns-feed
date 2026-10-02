@@ -1,0 +1,7 @@
+#!/bin/sh
+
+read -r device_mac < /sys/class/net/eth0/address
+printf '%s\n' "$device_mac" > /etc/fluent-bit/device-mac
+printf '@define RNS_DEVICE_MAC "%s"\n' "$device_mac" > /etc/syslog-ng/device-mac.conf
+
+exit 0
