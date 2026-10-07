@@ -21,6 +21,7 @@ env:
   FEED_NAME: rns
   BUILDER_IMAGE: ghcr.io/reticulum-spb/openwrt-rns-sdk-rust
   PACKAGES: >-
+    reticulum
     rns-telemetry
     rs-reticulum
     rs-lxmf

@@ -42,8 +42,33 @@ define Package/rns-telemetry/postinst
 	[ -s /etc/fluent-bit/device-mac ] || exit 1
 	[ -s /etc/syslog-ng/device-mac.conf ] || exit 1
 	/etc/init.d/syslog-ng reload
-	/etc/init.d/fluent-bit restart
+	if /etc/init.d/fluent-bit running; then
+		/etc/init.d/fluent-bit restart
+	else
+		/etc/init.d/fluent-bit start
+	fi
 }
+endef
+
+define Package/rns-telemetry/prerm
+#!/bin/sh
+[ -n "$$IPKG_INSTROOT" ] || {
+	if /etc/init.d/fluent-bit running; then
+		/etc/init.d/fluent-bit stop
+	fi
+}
+exit 0
+endef
+
+define Package/rns-telemetry/postrm
+#!/bin/sh
+rm -f "$$IPKG_INSTROOT/etc/syslog-ng.d/syslog-ng-rns.conf" \
+	"$$IPKG_INSTROOT/etc/syslog-ng/device-mac.conf" \
+	"$$IPKG_INSTROOT/etc/fluent-bit/device-mac"
+[ -n "$$IPKG_INSTROOT" ] || {
+	[ ! -x /etc/init.d/syslog-ng ] || /etc/init.d/syslog-ng reload
+}
+exit 0
 endef
 
 $(eval $(call BuildPackage,rns-telemetry))
